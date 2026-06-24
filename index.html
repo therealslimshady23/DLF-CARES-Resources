@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DLF CARES — School Dropout Hotspots & Programme Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; padding: 16px; }
+    h1 { font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }
+    p.sub { font-size: 12px; color: #777; margin-bottom: 10px; }
+
+    .top-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+    .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 300px; }
+    .search-box { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #ddd; border-radius: 20px; padding: 6px 14px; }
+    .search-box input { border: none; outline: none; font-size: 13px; width: 100%; background: transparent; }
+    #search-results { position: absolute; top: 100%; left: 0; right: 0; z-index: 9999; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); display: none; max-height: 200px; overflow-y: auto; margin-top: 4px; }
+    .sri { padding: 8px 14px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; }
+    .sri:hover { background: #f5f8ff; }
+    .sri .rate { font-weight: 700; }
+
+    .map-wrap { display: flex; gap: 12px; align-items: flex-start; }
+    #map { flex: 1; height: 680px; border-radius: 12px; border: 1px solid #ddd; min-width: 0; }
+    #sidebar { width: 236px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+
+    .scard { background: #fff; border-radius: 10px; padding: 13px; border: 1px solid #e8e8e8; }
+    .scard h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 9px; }
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f5f5f5; font-size: 12px; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-val { font-weight: 700; font-size: 15px; color: #1a1a3e; }
+
+    .dlf-card { background: #1a1a3e; border-radius: 10px; padding: 13px; color: #fff; }
+    .dlf-card h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #f5c518; margin-bottom: 9px; }
+    .dlf-stat { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 11px; }
+    .dlf-stat:last-child { border-bottom: none; }
+    .dlf-stat-val { font-weight: 700; font-size: 15px; color: #f5c518; }
+    .dlf-stat-lbl { color: #99a; }
+
+    .action-btn { width: 100%; padding: 8px; border-radius: 8px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: 5px; }
+    .action-btn:last-child { margin-bottom: 0; }
+
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center; }
+    .filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid #ccc; background: #fff; font-size: 12px; cursor: pointer; transition: opacity 0.2s; }
+    #live-count { background: #fff3cd; border: 1px solid #ffc107; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: #856404; margin-left: auto; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-size: 12px; color: #555; align-items: center; }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .source { margin-left: auto; font-size: 10px; color: #aaa; }
+
+    .hotspot-list { max-height: 200px; overflow-y: auto; }
+    .hitem { padding: 5px 0; border-bottom: 1px solid #f5f5f5; font-size: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .hitem:last-child { border-bottom: none; }
+    .hitem:hover .hname { color: #1a1a3e; font-weight: 600; }
+    .hname { flex: 1; color: #333; }
+    .hbadge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; color: #fff; flex-shrink: 0; }
+
+    .leaflet-popup-content-wrapper { border-radius: 10px !important; box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important; }
+    .leaflet-popup-content { margin: 12px 14px !important; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div>
+      <h1>DLF CARES — School Dropout Hotspots & Programme Map</h1>
+      <p class="sub">100+ districts · Click any pin for details · Data: UDISE+ 2021-24 / dlfcares.org</p>
+    </div>
+    <div class="search-wrap">
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="search-input" placeholder="Search district or state…" autocomplete="off"/>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <button class="filter-btn" id="btn-extreme" style="background:#7B0000;color:#fff;border-color:#7B0000;" onclick="filterLevel('extreme',this)">Extreme &gt;30%</button>
+    <button class="filter-btn" id="btn-critical" style="background:#A32D2D;color:#fff;border-color:#A32D2D;" onclick="filterLevel('critical',this)">Critical 20–30%</button>
+    <button class="filter-btn" id="btn-high"     style="background:#D85A30;color:#fff;border-color:#D85A30;" onclick="filterLevel('high',this)">High 10–20%</button>
+    <button class="filter-btn" id="btn-moderate" style="background:#EF9F27;color:#fff;border-color:#EF9F27;" onclick="filterLevel('moderate',this)">Moderate 5–10%</button>
+    <button class="filter-btn" id="btn-low"      style="background:#1D9E75;color:#fff;border-color:#1D9E75;" onclick="filterLevel('low',this)">Low &lt;5%</button>
+    <button class="filter-btn" id="btn-dlf"      style="background:#1a1a3e;color:#f5c518;border-color:#1a1a3e;" onclick="filterLevel('dlf',this)">⭐ DLF CARES</button>
+    <button class="filter-btn" style="background:#eee;color:#333;" onclick="showAll()">Show all</button>
+    <div id="live-count">Visible: <span id="count-num">—</span></div>
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div id="sidebar">
+
+      <!-- DLF CARES stats -->
+      <div class="dlf-card">
+        <h3>DLF CARES Programme</h3>
+        <div class="dlf-stat"><span class="dlf-stat-lbl">Active Scholars (FY26)</span><span class="dlf-stat-val">4,247</span></div>
+        <div class="dlf-stat"><span class="dlf-stat-lbl">States Covered</span><span class="dlf-stat-val">21</span></div>
+        <div class="dlf-stat"><span class="dlf-stat-lbl">Total Enrolled (10 yrs)</span><span class="dlf-stat-val">5,200+</span></div>
+        <div class="dlf-stat"><span class="dlf-stat-lbl">Career Counselling</span><span class="dlf-stat-val">50,000</span></div>
+        <div class="dlf-stat"><span class="dlf-stat-lbl">Teachers Trained</span><span class="dlf-stat-val">10,000+</span></div>
+        <div class="dlf-stat"><span class="dlf-stat-lbl">Families Impacted</span><span class="dlf-stat-val">20,000</span></div>
+      </div>
+
+      <!-- Live stats -->
+      <div class="scard">
+        <h3>Visible Districts</h3>
+        <div class="stat-row"><span style="color:#7B0000;font-weight:600;">Extreme &gt;30%</span><span class="stat-val" id="c-extreme">—</span></div>
+        <div class="stat-row"><span style="color:#A32D2D;font-weight:600;">Critical 20–30%</span><span class="stat-val" id="c-critical">—</span></div>
+        <div class="stat-row"><span style="color:#D85A30;font-weight:600;">High 10–20%</span><span class="stat-val" id="c-high">—</span></div>
+        <div class="stat-row"><span style="color:#EF9F27;font-weight:600;">Moderate 5–10%</span><span class="stat-val" id="c-moderate">—</span></div>
+        <div class="stat-row"><span style="color:#1D9E75;font-weight:600;">Low &lt;5%</span><span class="stat-val" id="c-low">—</span></div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="scard">
+        <h3>Quick Actions</h3>
+        <button class="action-btn" style="background:#1a1a3e;color:#f5c518;" onclick="zoomDLF()">⭐ Zoom to DLF Centres</button>
+        <button class="action-btn" style="background:#7B0000;color:#fff;" onclick="zoomExtreme()">🔴 Show Extreme Only</button>
+        <button class="action-btn" style="background:#f0f2f5;color:#333;border:1px solid #ddd;" onclick="resetView()">🗺 Reset View</button>
+      </div>
+
+      <!-- Top 10 worst -->
+      <div class="scard">
+        <h3>Top 10 Worst Districts</h3>
+        <div class="hotspot-list" id="top10"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#7B0000;"></span> Extreme (&gt;30%)</span>
+    <span><span class="dot" style="background:#A32D2D;"></span> Critical (20–30%)</span>
+    <span><span class="dot" style="background:#D85A30;"></span> High (10–20%)</span>
+    <span><span class="dot" style="background:#EF9F27;"></span> Moderate (5–10%)</span>
+    <span><span class="dot" style="background:#1D9E75;"></span> Low (&lt;5%)</span>
+    <span style="font-size:13px;">⭐</span><span>DLF CARES Centre (verified)</span>
+    <span class="source">Sources: UDISE+ / State Assembly / MoE PAB / dlfcares.org · Prepared for DLF CARES</span>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([22.5, 82.5], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 14
+    }).addTo(map);
+
+    const colors = { extreme:'#7B0000', critical:'#A32D2D', high:'#D85A30', moderate:'#EF9F27', low:'#1D9E75' };
+    const radii  = { extreme:20, critical:16, high:13, moderate:10, low:8 };
+
+    const hotspots = [
+      { name:'Kishanganj, Bihar', lat:26.10, lng:87.95, rate:39.7, level:'extreme', note:'Bihar highest secondary dropout ~39.7% nationally. Poverty, child labour, low female literacy.' },
+      { name:'Araria, Bihar', lat:26.14, lng:87.47, rate:35.0, level:'extreme', note:'Child marriage and labour. Girls drop out sharply after Class 8.' },
+      { name:'Sitamarhi, Bihar', lat:26.59, lng:85.49, rate:33.0, level:'extreme', note:'Flood-prone. Secondary dropout very high. Girls rarely reach Class 10.' },
+      { name:'Purnia, Bihar', lat:25.77, lng:87.47, rate:33.0, level:'extreme', note:'Flood plains, seasonal migration, child labour. School attendance irregular.' },
+      { name:'Madhepura, Bihar', lat:25.92, lng:86.79, rate:30.0, level:'extreme', note:'Kosi flood zone. Repeated displacement disrupts schooling.' },
+      { name:'Supaul, Bihar', lat:26.12, lng:86.60, rate:28.0, level:'critical', note:'Kosi river delta. Frequent flooding causes school closure and dropout.' },
+      { name:'Saharsa, Bihar', lat:25.88, lng:86.60, rate:26.0, level:'critical', note:'Backward district. High child labour in agriculture. Low secondary retention.' },
+      { name:'Sheohar, Bihar', lat:26.52, lng:85.30, rate:25.0, level:'critical', note:'Smallest district of Bihar. High poverty, lack of secondary schools.' },
+      { name:'Jamui, Bihar', lat:24.93, lng:86.22, rate:22.0, level:'critical', note:'Tribal belt. Naxal influence. Girls marry early, boys work in mines.' },
+      { name:'Aurangabad, Bihar', lat:24.75, lng:84.37, rate:20.0, level:'critical', note:'Backward district. High dropout at secondary level due to poverty.' },
+      { name:'Gaya, Bihar', lat:24.79, lng:85.00, rate:18.0, level:'high', note:'Naxal-affected rural blocks. Child labour in stone quarries.' },
+      { name:'Nawada, Bihar', lat:24.89, lng:85.54, rate:17.0, level:'high', note:'Backward district. Low female literacy drives girl dropout.' },
+      { name:'Banka, Bihar', lat:24.88, lng:86.92, rate:16.0, level:'high', note:'Tribal pockets. Children work in brick kilns and farms.' },
+      { name:'Patna, Bihar', lat:25.59, lng:85.13, rate:8.0, level:'moderate', note:'State capital. Better infrastructure but urban slum pockets show moderate dropout.' },
+      { name:'Muzaffarpur, Bihar', lat:26.12, lng:85.39, rate:7.0, level:'moderate', note:'District headquarters. Moderate dropout, improving with govt schemes.' },
+      { name:'Pakur, Jharkhand', lat:24.64, lng:87.84, rate:36.6, level:'extreme', note:'Jharkhand secondary dropout ~36.6%. Tribal, remote. Girls drop out after Class 5.' },
+      { name:'Dumka, Jharkhand', lat:24.26, lng:87.25, rate:34.0, level:'extreme', note:'Santhal Pargana. High dropout due to language barrier and poverty.' },
+      { name:'Latehar, Jharkhand', lat:23.74, lng:84.50, rate:30.0, level:'extreme', note:'Naxal-affected. Schools frequently closed. Tribal children rarely complete secondary.' },
+      { name:'Giridih, Jharkhand', lat:24.18, lng:86.30, rate:28.0, level:'critical', note:'Coal belt. Child labour in mines drives secondary dropout among boys.' },
+      { name:'Gumla, Jharkhand', lat:23.04, lng:84.54, rate:26.0, level:'critical', note:'Tribal district. Limited secondary schools. Long distances discourage attendance.' },
+      { name:'Simdega, Jharkhand', lat:22.61, lng:84.51, rate:24.0, level:'critical', note:'Tribal. Girls trafficked or married off early. School retention very low.' },
+      { name:'Palamu, Jharkhand', lat:24.03, lng:84.07, rate:22.0, level:'critical', note:'Drought-prone. Bonded labour still prevalent. Child labour in agriculture.' },
+      { name:'Hazaribagh, Jharkhand', lat:23.99, lng:85.36, rate:14.0, level:'high', note:'Mining district. Boys drop out for colliery work. Moderate infrastructure.' },
+      { name:'Ranchi, Jharkhand', lat:23.34, lng:85.31, rate:7.0, level:'moderate', note:'State capital. Better schools but urban poor pockets show moderate dropout.' },
+      { name:'Malkangiri, Odisha', lat:18.35, lng:81.90, rate:32.0, level:'extreme', note:'Most backward district. Naxal influence. No secondary school in many blocks.' },
+      { name:'Nabarangpur, Odisha', lat:19.23, lng:82.54, rate:28.0, level:'critical', note:'Tribal district. 25.9% state secondary dropout. Extreme poverty.' },
+      { name:'Gajapati, Odisha', lat:19.10, lng:84.00, rate:27.0, level:'critical', note:'Hilly tribal region. Girls drop out for early marriage after primary.' },
+      { name:'Koraput, Odisha', lat:18.81, lng:82.71, rate:26.0, level:'critical', note:'Tribal. Historical backwardness. Child labour in agriculture and mines.' },
+      { name:'Rayagada, Odisha', lat:19.17, lng:83.41, rate:24.0, level:'critical', note:'Kandhamal-adjacent. Tribal dropout high. Mining displacement disrupts schooling.' },
+      { name:'Kandhamal, Odisha', lat:20.12, lng:84.23, rate:22.0, level:'critical', note:'Communal violence legacy. Schools damaged. Tribal children among worst affected.' },
+      { name:'Nuapada, Odisha', lat:20.72, lng:82.54, rate:20.0, level:'critical', note:'Drought-prone tribal district. Child labour. Girls drop out after Class 5.' },
+      { name:'Bolangir, Odisha', lat:20.70, lng:83.48, rate:18.0, level:'high', note:'Seasonal migration of families. Children accompany parents, miss school months.' },
+      { name:'Boudh, Odisha', lat:20.83, lng:84.33, rate:15.0, level:'high', note:'Small district. Tribal pockets with limited secondary access.' },
+      { name:'Sundargarh, Odisha', lat:22.12, lng:84.03, rate:12.0, level:'high', note:'Industrial-tribal mix. Dropout in tribal blocks higher than urban areas.' },
+      { name:'Bhubaneswar (Khordha), Odisha', lat:20.30, lng:85.82, rate:4.0, level:'low', note:'State capital district. Low dropout. Good school infrastructure.' },
+      { name:'Barwani, MP', lat:22.03, lng:74.90, rate:38.0, level:'extreme', note:'MP secondary dropout ~38% (highest). Tribal district. Girls married by 14.' },
+      { name:'Alirajpur, MP', lat:22.30, lng:74.36, rate:36.0, level:'extreme', note:'Highest tribal concentration in MP. Extreme poverty. No secondary school in many villages.' },
+      { name:'Jhabua, MP', lat:22.77, lng:74.59, rate:34.0, level:'extreme', note:'Tribal. Bhil community. Boys migrate seasonally for labour, miss school months.' },
+      { name:'Dindori, MP', lat:22.94, lng:81.08, rate:32.0, level:'extreme', note:'Dense forest. No secondary school within 20km for many habitations. Girls drop out.' },
+      { name:'Singrauli, MP', lat:24.20, lng:82.67, rate:28.0, level:'critical', note:'Mining displacement. Child labour in coal sector. Low parental education.' },
+      { name:'Mandla, MP', lat:22.60, lng:80.38, rate:25.0, level:'critical', note:'Tribal-Gond area. Medium dropout. Girls drop out after Class 5 for early marriage.' },
+      { name:'Sheopur, MP', lat:25.66, lng:76.69, rate:22.0, level:'critical', note:'Scheduled Tribe district. Poverty and distance from schools.' },
+      { name:'Rajgarh, MP', lat:23.84, lng:76.73, rate:14.0, level:'high', note:'Agricultural district. Boys dropout for seasonal labour in larger cities.' },
+      { name:'Bhopal, MP', lat:23.25, lng:77.40, rate:5.0, level:'moderate', note:'State capital. Better infrastructure but slum pockets show moderate dropout.' },
+      { name:'Dungarpur, Rajasthan', lat:23.84, lng:73.72, rate:33.0, level:'extreme', note:'Rajasthan dropout ~33%. Tribal. Girls rarely reach secondary school.' },
+      { name:'Banswara, Rajasthan', lat:23.54, lng:74.45, rate:31.0, level:'extreme', note:'Tribal. Child marriage prevalent. Girls drop out after primary for household work.' },
+      { name:'Pratapgarh, Rajasthan', lat:24.03, lng:74.78, rate:29.0, level:'critical', note:'Tribal district. Low female literacy. High school absence rates.' },
+      { name:'Sirohi, Rajasthan', lat:24.88, lng:72.86, rate:25.0, level:'critical', note:'Remote desert and hill areas. School distance a major barrier.' },
+      { name:'Baran, Rajasthan', lat:25.10, lng:76.51, rate:22.0, level:'critical', note:'Tribal pockets. Saharia community. Extreme poverty. Child labour in farms.' },
+      { name:'Jaisalmer, Rajasthan', lat:26.92, lng:70.92, rate:19.0, level:'high', note:'Desert. Sparse population. Secondary schools very far for many habitations.' },
+      { name:'Barmer, Rajasthan', lat:25.75, lng:71.39, rate:17.0, level:'high', note:'Remote desert district. Girls drop out sharply after primary.' },
+      { name:'Jaipur, Rajasthan', lat:26.92, lng:75.82, rate:6.0, level:'moderate', note:'State capital. Better infrastructure. Moderate dropout in peri-urban areas.' },
+      { name:'Palghar, Maharashtra', lat:19.70, lng:72.77, rate:26.0, level:'critical', note:'Maharashtra dropout ~11.3% state; tribal Palghar higher. Warli tribal children.' },
+      { name:'Nandurbar, Maharashtra', lat:21.37, lng:74.24, rate:24.0, level:'critical', note:'Tribal district. Bhil community. Girls married off early. High dropout.' },
+      { name:'Gadchiroli, Maharashtra', lat:20.18, lng:80.00, rate:22.0, level:'critical', note:'Naxal-affected. Remote tribal. Schools in sensitive areas often closed.' },
+      { name:'Washim, Maharashtra', lat:20.11, lng:77.15, rate:15.0, level:'high', note:'Vidarbha. Agricultural distress. Child labour in cotton farms.' },
+      { name:'Yavatmal, Maharashtra', lat:20.40, lng:78.13, rate:14.0, level:'high', note:'Farmer suicide belt. Economic distress. Boys drop out to support families.' },
+      { name:'Osmanabad, Maharashtra', lat:18.19, lng:76.03, rate:12.0, level:'high', note:'Drought-prone Marathwada. Migration for water drives dropout.' },
+      { name:'Mumbai, Maharashtra', lat:19.07, lng:72.87, rate:3.0, level:'low', note:'Financial capital. Low dropout. Urban slum children better enrolled.' },
+      { name:'Pune, Maharashtra', lat:18.52, lng:73.86, rate:4.0, level:'low', note:'Education hub. Low dropout. Rural blocks of district slightly higher.' },
+      { name:'Bidar, Karnataka', lat:17.91, lng:77.52, rate:16.0, level:'high', note:'Karnataka state dropout ~3.2% but Bidar (backward) higher. Hyderabad-Karnataka region.' },
+      { name:'Raichur, Karnataka', lat:16.21, lng:77.36, rate:14.0, level:'high', note:'Backward district. Girls dropout in secondary. Irrigation labour families.' },
+      { name:'Yadgir, Karnataka', lat:16.77, lng:77.14, rate:13.0, level:'high', note:'Backward district. Worst HDI in Karnataka. Schools understaffed.' },
+      { name:'Koppal, Karnataka', lat:15.35, lng:76.15, rate:11.0, level:'high', note:'Backward district. Girls drop out for early marriage. Stone quarry labour.' },
+      { name:'Bellary, Karnataka', lat:15.14, lng:76.92, rate:10.0, level:'high', note:'Mining belt. Child labour in mines. Boys drop out for quarry work.' },
+      { name:'Bengaluru, Karnataka', lat:12.97, lng:77.59, rate:1.5, level:'low', note:'IT capital. Low dropout. Rural blocks of district slightly higher.' },
+      { name:'Vizianagaram, AP', lat:18.12, lng:83.40, rate:18.0, level:'high', note:'Tribal hilly area. Girls drop out post primary. Low female literacy.' },
+      { name:'Alluri Sitharama Raju, AP', lat:17.93, lng:82.09, rate:22.0, level:'critical', note:'Newly formed tribal district. Extreme remote areas. No secondary school access.' },
+      { name:'Mulugu, Telangana', lat:18.19, lng:80.05, rate:20.0, level:'critical', note:'Tribal. Remote. Newly formed district. Low school infrastructure.' },
+      { name:'Kumuram Bheem, Telangana', lat:19.11, lng:79.72, rate:18.0, level:'high', note:'Tribal. Forest dwellers. Long school distances. Girls drop out post primary.' },
+      { name:'Adilabad, Telangana', lat:19.67, lng:78.53, rate:16.0, level:'high', note:'Tribal-Gond. Poverty. Child marriage drives girl dropout in secondary.' },
+      { name:'Hyderabad, Telangana', lat:17.38, lng:78.49, rate:4.0, level:'low', note:'State capital. Low dropout. Old city pockets slightly higher.' },
+      { name:'Nuapada, Chhattisgarh', lat:20.72, lng:82.54, rate:30.0, level:'extreme', note:'Chhattisgarh dropout ~30% rural secondary. Extreme tribal region.' },
+      { name:'Sukma, Chhattisgarh', lat:18.39, lng:81.66, rate:34.0, level:'extreme', note:'Naxal-affected. Schools closed frequently. Tribal children rarely complete Class 8.' },
+      { name:'Bijapur, Chhattisgarh', lat:18.83, lng:80.80, rate:32.0, level:'extreme', note:'Active Naxal zone. Schools targeted. Children migrate for safety.' },
+      { name:'Dantewada, Chhattisgarh', lat:18.89, lng:81.35, rate:30.0, level:'extreme', note:'Highest Naxal violence. CRPF camps near schools. Tribal children displaced.' },
+      { name:'Narayanpur, Chhattisgarh', lat:19.70, lng:81.24, rate:28.0, level:'critical', note:'Remote tribal. Abujhmad forest. No road access to many villages.' },
+      { name:'Kanker, Chhattisgarh', lat:20.27, lng:81.49, rate:22.0, level:'critical', note:'Tribal transition zone. Improving but still high dropout in forest blocks.' },
+      { name:'Raipur, Chhattisgarh', lat:21.25, lng:81.63, rate:8.0, level:'moderate', note:'State capital. Better schools. Urban poor pockets show moderate dropout.' },
+      { name:'Bahraich, UP', lat:27.57, lng:81.60, rate:29.0, level:'critical', note:'UP state dropout ~29% rural secondary. Flood-prone Terai. Extreme poverty.' },
+      { name:'Shravasti, UP', lat:27.52, lng:81.83, rate:27.0, level:'critical', note:'Smallest and backward UP district. Terai. Very high poverty. Girls drop out post Class 5.' },
+      { name:'Balrampur, UP', lat:27.42, lng:82.18, rate:25.0, level:'critical', note:'Terai border district. Nepal migrant corridor. Child labour prevalent.' },
+      { name:'Sonbhadra, UP', lat:24.69, lng:83.06, rate:23.0, level:'critical', note:'Tribal district of UP. Mines and quarries employ children. School retention low.' },
+      { name:'Chitrakoot, UP', lat:25.18, lng:80.88, rate:22.0, level:'critical', note:'Backward area. Agricultural. Girls drop out for household work and early marriage.' },
+      { name:'Lakhimpur Kheri, UP', lat:27.94, lng:80.78, rate:18.0, level:'high', note:'Sugarcane belt. Children work in mills during harvest season. Irregular attendance.' },
+      { name:'Agra, UP', lat:27.18, lng:78.02, rate:9.0, level:'moderate', note:'Tourism city. Moderate dropout in peripheral slum areas.' },
+      { name:'Lucknow, UP', lat:26.85, lng:80.95, rate:5.0, level:'moderate', note:'State capital. Better infrastructure but urban poor dropout moderate.' },
+      { name:'West Garo Hills, Meghalaya', lat:25.48, lng:90.21, rate:34.0, level:'extreme', note:'Meghalaya dropout ~34%. Tribal. Remote. Language barrier at secondary level.' },
+      { name:'South Garo Hills, Meghalaya', lat:25.03, lng:90.48, rate:31.0, level:'extreme', note:'Garo tribal. Remote forest. Very limited secondary school access.' },
+      { name:'Ri Bhoi, Meghalaya', lat:25.72, lng:91.90, rate:20.0, level:'critical', note:'Rural Khasi. Distance from secondary school. Farming pulls children out.' },
+      { name:'East Khasi Hills (Shillong), Meghalaya', lat:25.57, lng:91.88, rate:8.0, level:'moderate', note:'State capital. Better schools. Moderate dropout in rural pockets.' },
+      { name:'Churachandpur, Manipur', lat:24.33, lng:93.68, rate:24.0, level:'critical', note:'Kuki tribal. Conflict-affected. Secondary school access limited.' },
+      { name:'Chandel, Manipur', lat:24.43, lng:94.03, rate:20.0, level:'critical', note:'Remote tribal. Myanmar border. Ethnic conflict disrupts schooling.' },
+      { name:'Imphal West, Manipur', lat:24.82, lng:93.94, rate:6.0, level:'moderate', note:'State capital area. Better infrastructure. Moderate dropout.' },
+      { name:'Chirang, Assam', lat:26.54, lng:90.47, rate:28.0, level:'critical', note:'Bodo tribal. Assam dropout ~14.6% state; Chirang tribal areas much higher.' },
+      { name:'Dhubri, Assam', lat:26.02, lng:89.98, rate:25.0, level:'critical', note:'Flood-prone. Bangladesh border. High migration and poverty. Girls drop out.' },
+      { name:'Kokrajhar, Assam', lat:26.40, lng:90.27, rate:22.0, level:'critical', note:'Bodo tribal. Historical conflict area. Schools disrupted during unrest.' },
+      { name:'Goalpara, Assam', lat:26.17, lng:90.62, rate:18.0, level:'high', note:'Char areas. River islands. Flood displaces families. Schools accessible only by boat.' },
+      { name:'Darrang, Assam', lat:26.47, lng:91.95, rate:16.0, level:'high', note:'Agricultural. Seasonal flooding. Child labour in agriculture.' },
+      { name:'Guwahati (Kamrup Metro), Assam', lat:26.14, lng:91.74, rate:5.0, level:'moderate', note:'State capital region. Good infrastructure. Moderate dropout in outskirts.' },
+      { name:'Ludhiana, Punjab', lat:30.91, lng:75.85, rate:6.0, level:'moderate', note:'Industrial city. Migrant worker children at risk. Moderate dropout.' },
+      { name:'Amritsar, Punjab', lat:31.63, lng:74.87, rate:5.0, level:'moderate', note:'Tourist city. Moderate dropout. Rural blocks higher than urban.' },
+      { name:'Kinnaur, HP', lat:31.57, lng:78.39, rate:9.0, level:'moderate', note:'Remote Himalayan district. High altitude. Schools inaccessible in winter.' },
+      { name:'Lahaul & Spiti, HP', lat:32.50, lng:77.50, rate:8.0, level:'moderate', note:'Extremely remote. Snow-cut for 6 months. Boarding required for secondary.' },
+      { name:'Chamba, HP', lat:32.56, lng:76.13, rate:7.0, level:'moderate', note:'HP dropout fluctuating. Chamba — backward, remote. Girls drop out for domestic work.' },
+      { name:'Shimla, HP', lat:31.10, lng:77.17, rate:3.0, level:'low', note:'State capital. Good infrastructure. Low dropout.' },
+      { name:'Kishtwar, J&K', lat:33.31, lng:75.77, rate:14.0, level:'high', note:'Remote mountain district. Security issues. Girls rarely attend secondary.' },
+      { name:'Ramban, J&K', lat:33.24, lng:75.20, rate:12.0, level:'high', note:'Landslide-prone. National highway disruptions. Irregular school attendance.' },
+      { name:'Doda, J&K', lat:33.14, lng:75.54, rate:11.0, level:'high', note:'Remote. Historically conflict-affected. Secondary school gap.' },
+      { name:'Srinagar, J&K', lat:34.08, lng:74.80, rate:5.0, level:'moderate', note:'UT capital. Moderate dropout. Conflict and curfews intermittently affect attendance.' },
+      { name:'Dharmapuri, TN', lat:12.13, lng:78.16, rate:8.0, level:'moderate', note:'Backward district. Child labour in granite quarries. Girls drop out post-primary.' },
+      { name:'Villupuram, TN', lat:11.94, lng:79.49, rate:7.0, level:'moderate', note:'Agricultural. Seasonal sugar harvest migration. Moderate dropout.' },
+      { name:'Tiruvannamalai, TN', lat:12.23, lng:79.07, rate:6.5, level:'moderate', note:'Child labour in brick kilns and fireworks. Moderate dropout.' },
+      { name:'Krishnagiri, TN', lat:12.52, lng:78.21, rate:6.0, level:'moderate', note:'Industrial. Migrant workers children. Moderate dropout.' },
+      { name:'Chennai, TN', lat:13.08, lng:80.27, rate:0.5, level:'low', note:'State capital. TN dropout rate 0.4-0.5%. Excellent school retention.' },
+      { name:'Coimbatore, TN', lat:11.02, lng:76.96, rate:1.0, level:'low', note:'Industrial. Good school infrastructure. Low dropout.' },
+      { name:'Wayanad, Kerala', lat:11.60, lng:76.08, rate:3.5, level:'low', note:'Tribal district. Highest in Kerala but still low nationally. Adivasi children.' },
+      { name:'Idukki, Kerala', lat:9.92, lng:77.10, rate:2.5, level:'low', note:'Plantation district. Tea estate workers children. Slightly above state average.' },
+      { name:'Thiruvananthapuram, Kerala', lat:8.52, lng:76.94, rate:0.4, level:'low', note:'Kerala overall dropout 0.4%. State capital. Near-universal school retention.' },
+      { name:'Pithoragarh, Uttarakhand', lat:29.58, lng:80.22, rate:11.0, level:'high', note:'Remote Himalayan. Migration of families. Children left behind drop out.' },
+      { name:'Champawat, Uttarakhand', lat:29.33, lng:80.09, rate:10.0, level:'high', note:'Remote hill district. Women-headed households. Girls drop out for farm work.' },
+      { name:'Bageshwar, Uttarakhand', lat:29.84, lng:79.77, rate:9.0, level:'moderate', note:'Hill district. Male migration leaves girls to do domestic and farm work.' },
+      { name:'Dehradun, Uttarakhand', lat:30.32, lng:78.03, rate:4.0, level:'low', note:'State capital. Good schools. Low dropout. Outer rural blocks slightly higher.' },
+      { name:'South Sikkim', lat:27.25, lng:88.54, rate:7.0, level:'moderate', note:'Remote. Agricultural. Girls drop out after primary for farm work.' },
+      { name:'Papumpare, Arunachal', lat:27.10, lng:93.75, rate:12.0, level:'high', note:'Near capital Itanagar. Better than remote districts but dropout still high.' },
+    ];
+
+    const markers = [];
+    const activeFilters = new Set(['extreme','critical','high','moderate','low','dlf']);
+
+    hotspots.forEach(h => {
+      const color = colors[h.level];
+      const circle = L.circleMarker([h.lat, h.lng], {
+        radius: radii[h.level],
+        fillColor: color, color: '#fff', weight: 1.5, opacity: 1, fillOpacity: 0.85
+      }).addTo(map);
+
+      circle.bindPopup(`
+        <div style="font-family:-apple-system,sans-serif;min-width:210px;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:3px;">${h.name}</div>
+          <div style="font-size:22px;font-weight:700;color:${color};margin-bottom:7px;">${h.rate}%</div>
+          <div style="font-size:12px;color:#444;line-height:1.6;margin-bottom:8px;">${h.note}</div>
+          <div style="font-size:11px;padding:4px 8px;background:${color}18;border-left:3px solid ${color};border-radius:3px;color:${color};font-weight:600;">
+            ${h.level.charAt(0).toUpperCase()+h.level.slice(1)} dropout zone
+          </div>
+        </div>
+      `, { maxWidth: 270 });
+
+      circle.bindTooltip(`<b>${h.name}</b>: ${h.rate}%`, { direction:'top', offset:[0,-radii[h.level]] });
+      markers.push({ circle, level:h.level, name:h.name, rate:h.rate, onMap:true });
+    });
+
+    // DLF CARES centres
+    const dlfCentres = [
+      { name:'Gurugram HQ + Partner Schools', lat:28.459, lng:77.026, schools:'Shishu Kalyan Sr Secondary, Pine Crest School, SRF Vidyalaya, GAV International School, Kendriya Vidyalaya Gurugram, Summer Fields School, DLF QEC Ridge Valley School', note:'Primary hub — majority of 4,247 active scholars. DLF Foundation HQ located here. ACER assessments, faculty enrichment, and career counselling sessions anchored here.', scholars:'Primary hub — majority of active scholars' },
+      { name:'Delhi (Multiple Zones)', lat:28.635, lng:77.225, schools:'Sahoday Sr Secondary School, Gyan Jyoti Public School, KLK Saraswati Bal Mandir (Mehrauli)', note:'Partner schools across Delhi zones. Food distribution drives with Akshay Patra Foundation at Govt Girls School, New Delhi. ACER needs assessments across 8 partner schools in Delhi & Gurugram jointly.', scholars:'Significant secondary hub' },
+      { name:'Chennai', lat:13.082, lng:80.270, schools:'Confirmed programme presence', note:'Collaboration meeting with parents of scholars and iDream Careers conducted by DLF CARES Project Coordinator, Chennai. DLF Engage Tree Care Drive at Madambakkam Urban Forest also confirmed.', scholars:'Active presence confirmed' },
+      { name:'Mussoorie, Uttarakhand', lat:30.459, lng:78.068, schools:'Partner school (confirmed COVID device distribution)', note:'1,000+ tablets and digital devices distributed to partner schools in Mussoorie during COVID-19 (2020). Online counselling extended to scholars facing isolation and mental health issues.', scholars:'Confirmed device distribution hub' },
+      { name:'Jammu & Kashmir', lat:34.083, lng:74.797, schools:'Scholar presence confirmed', note:'DLF CARES scholars from J&K visited DLF Foundation under the Sadhvana programme (2018). Alumni interactions documented. Scholar presence across the state confirmed.', scholars:'Scholar presence via alumni records' },
+    ];
+
+    const dlfMarkers = [];
+    const dlfIcon = L.divIcon({
+      className: '',
+      html: '<div style="font-size:14px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6));">⭐</div>',
+      iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -9]
+    });
+
+    dlfCentres.forEach(d => {
+      const m = L.marker([d.lat, d.lng], { icon: dlfIcon, zIndexOffset: 1000 }).addTo(map);
+      m.bindPopup(`
+        <div style="font-family:-apple-system,sans-serif;min-width:240px;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px;color:#1a1a3e;">🏫 ${d.name}</div>
+          <div style="font-size:11px;font-weight:700;background:#f5c518;color:#3a2a00;padding:2px 10px;border-radius:10px;display:inline-block;margin-bottom:8px;">DLF CARES Centre</div>
+          <div style="font-size:12px;color:#333;line-height:1.6;margin-bottom:6px;">${d.note}</div>
+          <div style="font-size:11px;background:#f0f4ff;border-radius:6px;padding:6px 8px;color:#1a1a3e;">
+            <b>Partner schools:</b><br>${d.schools}
+          </div>
+        </div>
+      `, { maxWidth: 310 });
+      m.bindTooltip(`⭐ DLF CARES: ${d.name}`, { direction:'top', offset:[0,-9] });
+      dlfMarkers.push({ marker: m, onMap: true });
+    });
+
+    // ── Search ──────────────────────────────────────────────
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      searchResults.innerHTML = '';
+      if (q.length < 2) { searchResults.style.display = 'none'; return; }
+      const matches = hotspots.filter(h => h.name.toLowerCase().includes(q)).slice(0, 8);
+      if (!matches.length) { searchResults.style.display = 'none'; return; }
+      matches.forEach(h => {
+        const item = document.createElement('div');
+        item.className = 'sri';
+        item.innerHTML = `<span>${h.name}</span><span class="rate" style="color:${colors[h.level]};">${h.rate}%</span>`;
+        item.onclick = () => {
+          map.setView([h.lat, h.lng], 9);
+          const mk = markers.find(m => m.name === h.name);
+          if (mk) mk.circle.openPopup();
+          searchResults.style.display = 'none';
+          searchInput.value = h.name;
+        };
+        searchResults.appendChild(item);
+      });
+      searchResults.style.display = 'block';
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.search-wrap')) searchResults.style.display = 'none'; });
+
+    // ── Top 10 list ─────────────────────────────────────────
+    function buildTop10() {
+      const top10 = document.getElementById('top10');
+      top10.innerHTML = '';
+      const sorted = [...hotspots].sort((a,b) => b.rate - a.rate).slice(0,10);
+      sorted.forEach(h => {
+        const div = document.createElement('div');
+        div.className = 'hitem';
+        div.innerHTML = `<span class="hname">${h.name.split(',')[0]}</span><span class="hbadge" style="background:${colors[h.level]};">${h.rate}%</span>`;
+        div.onclick = () => { map.setView([h.lat, h.lng], 9); markers.find(m=>m.name===h.name)?.circle.openPopup(); };
+        top10.appendChild(div);
+      });
+    }
+    buildTop10();
+
+    // ── Live counter ─────────────────────────────────────────
+    function updateCount() {
+      const levels = ['extreme','critical','high','moderate','low'];
+      let total = 0;
+      levels.forEach(l => {
+        const cnt = markers.filter(m => m.onMap && m.level === l).length;
+        document.getElementById('c-'+l).textContent = cnt;
+        total += cnt;
+      });
+      document.getElementById('count-num').textContent = total + ' districts';
+    }
+    updateCount();
+
+    // ── Filters ───────────────────────────────────────────────
+    function filterLevel(level, btn) {
+      if (level === 'dlf') {
+        if (activeFilters.has('dlf')) {
+          activeFilters.delete('dlf');
+          btn.style.opacity = '0.35';
+          dlfMarkers.forEach(m => { if (m.onMap) { map.removeLayer(m.marker); m.onMap = false; } });
+        } else {
+          activeFilters.add('dlf');
+          btn.style.opacity = '1';
+          dlfMarkers.forEach(m => { if (!m.onMap) { m.marker.addTo(map); m.onMap = true; } });
+        }
+        return;
+      }
+      if (activeFilters.has(level)) {
+        activeFilters.delete(level);
+        btn.style.opacity = '0.35';
+      } else {
+        activeFilters.add(level);
+        btn.style.opacity = '1';
+      }
+      markers.forEach(m => {
+        if (activeFilters.has(m.level)) { if (!m.onMap) { m.circle.addTo(map); m.onMap = true; } }
+        else { if (m.onMap) { map.removeLayer(m.circle); m.onMap = false; } }
+      });
+      updateCount();
+    }
+
+    function showAll() {
+      ['extreme','critical','high','moderate','low','dlf'].forEach(l => activeFilters.add(l));
+      markers.forEach(m => { if (!m.onMap) { m.circle.addTo(map); m.onMap = true; } });
+      dlfMarkers.forEach(m => { if (!m.onMap) { m.marker.addTo(map); m.onMap = true; } });
+      document.querySelectorAll('.filter-btn').forEach(b => b.style.opacity = '1');
+      updateCount();
+    }
+
+    // ── Quick actions ─────────────────────────────────────────
+    function zoomDLF() {
+      const bounds = L.latLngBounds(dlfCentres.map(d => [d.lat, d.lng]));
+      map.fitBounds(bounds, { padding: [40, 40] });
+      if (!activeFilters.has('dlf')) filterLevel('dlf', document.getElementById('btn-dlf'));
+    }
+
+    function zoomExtreme() {
+      ['extreme','critical','high','moderate','low'].forEach(l => {
+        if (l !== 'extreme') {
+          activeFilters.delete(l);
+          const btn = document.getElementById('btn-'+l);
+          if (btn) btn.style.opacity = '0.35';
+        } else {
+          activeFilters.add(l);
+          const btn = document.getElementById('btn-'+l);
+          if (btn) btn.style.opacity = '1';
+        }
+      });
+      markers.forEach(m => {
+        if (m.level === 'extreme') { if (!m.onMap) { m.circle.addTo(map); m.onMap = true; } }
+        else { if (m.onMap) { map.removeLayer(m.circle); m.onMap = false; } }
+      });
+      const extPts = hotspots.filter(h => h.level === 'extreme');
+      if (extPts.length) map.fitBounds(L.latLngBounds(extPts.map(h => [h.lat,h.lng])), { padding:[40,40] });
+      updateCount();
+    }
+
+    function resetView() {
+      map.setView([22.5, 82.5], 5);
+      showAll();
+    }
+  </script>
+</body>
+</html>

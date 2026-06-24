@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DLF CARES Scholarship Benchmarking</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+
+  :root {
+    --navy: #1A1A3E;
+    --yellow: #F5C518;
+    --white: #FFFFFF;
+    --gray: #6B7280;
+    --light-gray: #F3F4F6;
+    --border: #E5E7EB;
+    --text: #1F2937;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--white); color: var(--text); line-height: 1.6; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in { animation: fadeInUp 0.6s ease-out forwards; }
+
+  /* ── NAVIGATION ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--navy);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .nav-brand {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--yellow);
+  }
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a { color: var(--white); font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--yellow); }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, #252550 100%);
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--white);
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    margin-bottom: 0.75rem;
+    line-height: 1.2;
+  }
+  .hero h1 span { color: var(--yellow); }
+  .hero-sub {
+    font-size: 1rem;
+    color: #D1D5DB;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    font-weight: 300;
+  }
+
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .stat-card {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(245, 197, 24, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+    animation: fadeInUp 0.6s ease-out forwards;
+  }
+  .stat-card:nth-child(2) { animation-delay: 0.1s; }
+  .stat-card:nth-child(3) { animation-delay: 0.2s; }
+  .stat-card:nth-child(4) { animation-delay: 0.3s; }
+  .stat-num {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--yellow);
+    display: block;
+  }
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9CA3AF;
+    margin-top: 4px;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 8px 12px 8px 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .search-box input:focus {
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(26, 26, 62, 0.1);
+  }
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray);
+    font-size: 13px;
+  }
+
+  .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--gray);
+  }
+  .pill:hover, .pill.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+  .result-text { font-size: 12px; color: var(--gray); margin-left: auto; white-space: nowrap; }
+
+  /* ── SECTION ── */
+  .section {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+  }
+  .section-head {
+    margin-bottom: 2rem;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--gray);
+  }
+
+  /* ── INSIGHT BOX ── */
+  .insight-box {
+    background: #FEF9E7;
+    border-left: 4px solid var(--yellow);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+  .insight-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #92400E;
+    margin-bottom: 0.75rem;
+  }
+  .insight-text {
+    font-size: 13px;
+    color: #78350F;
+    line-height: 1.6;
+  }
+
+  /* ── CARD GRID ── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .program-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .program-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--navy);
+    box-shadow: 0 12px 24px rgba(26, 26, 62, 0.12);
+  }
+  .program-card.hidden { display: none; }
+
+  .card-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: var(--yellow);
+    color: var(--navy);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+
+  .card-head {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-org {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--gray);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .card-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.3;
+  }
+
+  .card-body {
+    padding: 1.5rem;
+    flex: 1;
+  }
+
+  .card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .card-field {
+    padding: 0.75rem;
+    background: var(--light-gray);
+    border-radius: 8px;
+  }
+  .field-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gray);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .field-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .support-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-bottom: 1rem;
+  }
+  .support-item {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #10B981;
+    background: #ECFDF5;
+    padding: 6px 4px;
+    border-radius: 6px;
+  }
+
+  .coverage-bar {
+    background: var(--light-gray);
+    border-radius: 6px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+  .coverage-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--navy) 0%, #4F46E5 100%);
+    transition: width 0.6s ease-out;
+  }
+  .coverage-text {
+    font-size: 11px;
+    color: var(--gray);
+    font-weight: 600;
+  }
+
+  .card-footer {
+    padding: 1rem 1.5rem;
+    background: var(--light-gray);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+  .footer-stat { color: var(--text); font-weight: 600; }
+  .footer-stat span { color: var(--navy); font-weight: 700; }
+  .view-btn {
+    background: var(--navy);
+    color: var(--white);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .view-btn:hover { background: #0F172A; }
+
+  /* DLF highlight */
+  .program-card.dlf-card {
+    border: 2px solid var(--yellow);
+    background: linear-gradient(135deg, #FFFBEB 0%, var(--white) 100%);
+  }
+  .program-card.dlf-card .card-head {
+    background: var(--navy);
+    color: var(--white);
+    border: none;
+  }
+  .program-card.dlf-card .card-org,
+  .program-card.dlf-card .card-name {
+    color: var(--white);
+  }
+
+  /* ── HEATMAP ── */
+  .heatmap-wrap {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  .heatmap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .heatmap-table th {
+    background: var(--navy);
+    color: var(--white);
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+  }
+  .heatmap-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .heatmap-table tr:hover { background: var(--light-gray); }
+  .heatmap-table .prog-name { font-weight: 600; color: var(--navy); }
+  .heatmap-table .dlf { color: var(--yellow); }
+
+  .heat-cell {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    background: #ECFDF5;
+    color: #10B981;
+  }
+  .heat-cell.none {
+    background: #FEE2E2;
+    color: #DC2626;
+  }
+
+  /* ── DISTRICT MAP ── */
+  .district-map-container {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+  }
+  .region-section {
+    margin-bottom: 2.5rem;
+  }
+  .region-section:last-child { margin-bottom: 0; }
+  .region-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border);
+  }
+  .district-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+  .district-box {
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+  .district-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .district-name {
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  .district-rate {
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .district-label {
+    font-size: 9px;
+    margin-top: 3px;
+    opacity: 0.7;
+  }
+
+  .map-legend {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .map-legend .legend-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+  }
+  .map-legend .legend-item:last-of-type { margin-bottom: 0; }
+  .legend-color {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .map-legend .legend-item strong {
+    display: block;
+    font-size: 12px;
+    color: var(--navy);
+  }
+  .map-legend .legend-item span {
+    font-size: 11px;
+    color: var(--gray);
+    display: block;
+  }
+
+  /* ── COMPARISON CHART ── */
+  .chart-section {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+  .chart-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1.5rem;
+  }
+
+  .bar-item {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  .bar-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .bar-track {
+    background: var(--light-gray);
+    border-radius: 6px;
+    height: 24px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 700;
+    transition: width 0.6s ease-out;
+  }
+  .bar-fill.dlf { background: var(--yellow); color: var(--navy); }
+  .bar-fill.peer { background: #6B7280; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .modal-overlay.open {
+    display: flex;
+    opacity: 1;
+  }
+  .modal {
+    background: var(--white);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 650px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    background: var(--navy);
+    color: var(--white);
+    padding: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .modal-title { font-size: 1.4rem; font-weight: 700; }
+  .modal-org {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--yellow);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--white);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-close:hover { background: rgba(245, 197, 24, 0.2); border-radius: 8px; }
+
+  .modal-body {
+    padding: 2rem;
+  }
+  .modal-section {
+    margin-bottom: 2rem;
+  }
+  .modal-section h3 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--navy);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border);
+  }
+  .modal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .modal-field {
+    background: var(--light-gray);
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  .modal-field-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gray);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .modal-field-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .source-link {
+    display: inline-flex;
+    gap: 6px;
+    background: #EEF2FF;
+    border: 1px solid #C7D2FE;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4338CA;
+    transition: all 0.2s;
+  }
+  .source-link:hover { background: #E0E7FF; }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--navy);
+    color: #D1D5DB;
+    padding: 2rem;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  /* ── INSIGHT CARDS ── */
+  .insight-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+  }
+  .insight-card:hover {
+    border-color: var(--navy);
+    box-shadow: 0 8px 16px rgba(26, 26, 62, 0.08);
+  }
+  .insight-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1rem;
+  }
+  .insight-card-body {
+    font-size: 13px;
+  }
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    font-size: 12px;
+  }
+  .metric-row span { color: var(--gray); }
+  .metric-row strong { color: var(--navy); font-weight: 700; }
+
+  /* ── GAP FINDER ── */
+  .gap-finder {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+  .gap-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1.5rem;
+  }
+  .gap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  .gap-item {
+    background: #FEF9E7;
+    border-left: 3px solid #F5C518;
+    border-radius: 8px;
+    padding: 1.25rem;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .gap-item:hover {
+    background: #FDF6D9;
+    transform: translateX(4px);
+  }
+  .gap-item-title {
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+  }
+  .gap-item-desc {
+    color: #78350F;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  /* ── COMPARISON TOOL ── */
+  .comparison-tool {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+  }
+  .tool-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1.5rem;
+  }
+  .tool-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+  .tool-controls label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .tool-controls select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+  .tool-controls select:focus {
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(26, 26, 62, 0.1);
+  }
+
+  .comparison-result {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  @media (max-width: 768px) {
+    .comparison-result { grid-template-columns: 1fr; }
+  }
+
+  .comp-col {
+    padding: 1.5rem;
+    background: var(--light-gray);
+    border-radius: 8px;
+  }
+  .comp-col.dlf {
+    background: linear-gradient(135deg, #FFFBEB 0%, var(--white) 100%);
+    border: 1px solid var(--yellow);
+  }
+  .comp-col-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .comp-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .comp-row:last-child { border-bottom: none; }
+  .comp-label { color: var(--gray); }
+  .comp-value {
+    font-weight: 700;
+    color: var(--text);
+  }
+  .comp-value.check {
+    color: #10B981;
+    font-size: 14px;
+  }
+  .comp-value.cross {
+    color: #EF4444;
+    font-size: 14px;
+  }
+
+  .comp-insight {
+    background: #FEF9E7;
+    border-left: 3px solid var(--yellow);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: #78350F;
+    line-height: 1.6;
+  }
+  .comp-insight strong {
+    color: var(--navy);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ── NCR INTERACTIVE MAP ── */
+  .ncr-map-wrap {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+  #ncr-map {
+    height: 500px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+  }
+  .ncr-filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .ncr-filter {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--gray);
+    font-family: 'Inter', sans-serif;
+  }
+  .ncr-filter:hover, .ncr-filter.active {
+    background: var(--navy);
+    color: var(--white);
+    border-color: var(--navy);
+  }
+  .ncr-map-footer {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 640px) {
+    .ncr-map-footer { grid-template-columns: 1fr; }
+    #ncr-map { height: 360px; }
+  }
+  .ncr-legend {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+  .ncr-legend-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ncr-legend-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 0.6rem;
+  }
+  .ncr-legend-item:last-child { margin-bottom: 0; }
+  .ncr-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.6);
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  }
+  .ncr-legend-label strong {
+    display: block;
+    font-size: 12px;
+    color: var(--navy);
+  }
+  .ncr-legend-label span {
+    font-size: 11px;
+    color: var(--gray);
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">DLF CARES</div>
+  <div class="nav-links">
+    <a onclick="scroll('#overview')">Overview</a>
+    <a onclick="scroll('#programs')">Programs</a>
+    <a onclick="scroll('#comparison')">Comparison</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero" id="overview">
+  <h1>Scholarship<br><span>Benchmarking Report</span></h1>
+  <p class="hero-sub">How DLF CARES compares to 10 peer corporate scholarship programs across India</p>
+  
+  <div class="hero-stats">
+    <div class="stat-card">
+      <span class="stat-num" data-count="4247">0</span>
+      <span class="stat-label">Active Scholars</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num" data-count="11">0</span>
+      <span class="stat-label">Programs Analyzed</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num" data-count="21">0</span>
+      <span class="stat-label">States Covered</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num" data-count="136875000">0</span>
+      <span class="stat-label">Annual Investment</span>
+    </div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search" placeholder="Search by name..." onkeyup="applyFilters()">
+  </div>
+  <div class="filter-pills">
+    <button class="pill active" onclick="setFilter('all', this)">All</button>
+    <button class="pill" onclick="setFilter('open', this)">Open Access</button>
+    <button class="pill" onclick="setFilter('class1', this)">Class 1+</button>
+    <button class="pill" onclick="setFilter('full', this)">Full Support</button>
+  </div>
+  <span class="result-text" id="count">Showing 11</span>
+</div>
+
+<!-- KEY INSIGHT -->
+<div class="section">
+  <div class="insight-box">
+    <div class="insight-title">🎯 Key Finding</div>
+    <div class="insight-text">
+      <strong>DLF CARES is the only program offering comprehensive support across 11 dimensions.</strong> With full fee coverage, uniform, books, stationery, plus counselling, remedial, career guidance, and psychometric testing—across 21 states with open application and no gender restrictions—it stands apart from peer programs that average 2-4 support types in restricted geographies.
+    </div>
+  </div>
+</div>
+
+<!-- PROGRAMS -->
+<div class="section" id="programs">
+  <div class="section-head">
+    <h2 class="section-title">All Programs</h2>
+    <p class="section-desc">Click any card to view detailed breakdown and sources</p>
+  </div>
+  <div class="cards-grid" id="grid"></div>
+</div>
+
+<!-- NCR DISTRICTS DROPOUT RATE MAP -->
+<div class="section" id="comparison">
+  <div class="section-head">
+    <h2 class="section-title">NCR Expansion Opportunity: Dropout Rates by District</h2>
+    <p class="section-desc">Identify high-need districts where DLF can expand within NCR</p>
+  </div>
+
+  <div class="district-map-container">
+
+    <!-- Filter bar -->
+    <div class="ncr-filter-bar">
+      <span style="font-size: 12px; font-weight: 600; color: var(--gray);">Show:</span>
+      <button class="ncr-filter active" onclick="filterNCR('all', this)">All NCR Districts</button>
+      <button class="ncr-filter" onclick="filterNCR('delhi', this)">🏙️ Delhi</button>
+      <button class="ncr-filter" onclick="filterNCR('haryana', this)">🌆 Haryana</button>
+      <button class="ncr-filter" onclick="filterNCR('up', this)">🏘️ Uttar Pradesh</button>
+      <span id="ncr-count" style="margin-left: auto; font-size: 12px; color: var(--gray); font-weight: 600; background: var(--light-gray); padding: 4px 12px; border-radius: 20px;"></span>
+    </div>
+
+    <!-- Map -->
+    <div class="ncr-map-wrap">
+      <div id="ncr-map"></div>
+    </div>
+
+    <!-- Legend + Strategy -->
+    <div class="ncr-map-footer">
+
+      <div class="ncr-legend">
+        <div class="ncr-legend-title">Dropout Rate Scale</div>
+        <div class="ncr-legend-item">
+          <div class="ncr-dot" style="background: #1D9E75;"></div>
+          <div class="ncr-legend-label">
+            <strong>Low (&lt;8%)</strong>
+            <span>Strong retention — DLF heartland</span>
+          </div>
+        </div>
+        <div class="ncr-legend-item">
+          <div class="ncr-dot" style="background: #EF9F27;"></div>
+          <div class="ncr-legend-label">
+            <strong>Moderate (8–15%)</strong>
+            <span>Intervention opportunity</span>
+          </div>
+        </div>
+        <div class="ncr-legend-item">
+          <div class="ncr-dot" style="background: #A32D2D;"></div>
+          <div class="ncr-legend-label">
+            <strong>High (&gt;15%)</strong>
+            <span>Critical — DLF priority expansion</span>
+          </div>
+        </div>
+        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 10px; color: var(--gray);">
+          Click any district marker for details
+        </div>
+      </div>
+
+      <div style="padding: 1.5rem; background: #FEF9E7; border-left: 4px solid var(--yellow); border-radius: 8px;">
+        <strong style="color: var(--navy); display: block; margin-bottom: 0.5rem;">🎯 DLF NCR Expansion Strategy</strong>
+        <p style="font-size: 12px; color: #78350F; line-height: 1.7;">
+          High-dropout districts — <strong>Hisar (24.7%), Jind (21.3%), Bulandshahr (25.3%), Meerut (22.1%)</strong> — represent
+          critical need zones. DLF's holistic model (counselling + remedial + career guidance) directly targets the drivers
+          of rural dropout. Expansion into Tier-2 NCR (15%+ dropout) offers <strong>10× more impact per scholar</strong>
+          than metro Delhi, where retention is already strong.
+        </p>
+        <p style="font-size: 11px; color: #92400E; margin-top: 0.75rem;">
+          Source: UDISE+ 2021–24 · Haryana School Education Dept · UP Basic Education Dept
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- end section#comparison -->
+
+
+<!-- HEATMAP -->
+<div class="section">
+  <div class="section-head">
+    <h2 class="section-title">Support Type Coverage</h2>
+    <p class="section-desc">Which programs cover which support dimensions</p>
+  </div>
+  <div class="heatmap-wrap">
+    <table class="heatmap-table">
+      <thead>
+        <tr>
+          <th style="min-width:120px;">Program</th>
+          <th title="Fee">Fee</th>
+          <th title="Uniform">Uniform</th>
+          <th title="Books">Books</th>
+          <th title="Stationery">Stationery</th>
+          <th title="Transport">Transport</th>
+          <th title="Counselling">Counselling</th>
+          <th title="Remedial">Remedial</th>
+          <th title="Career">Career</th>
+          <th title="Psychometric">Psychometric</th>
+          <th title="Digital">Digital</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="heatmap"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- STRATEGIC INSIGHTS -->
+<div class="section">
+  <div class="section-head">
+    <h2 class="section-title">Strategic Opportunities</h2>
+    <p class="section-desc">Where DLF can lead and what the market is missing</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Geographic Coverage -->
+    <div class="insight-card">
+      <div class="insight-card-title">🗺️ Geographic Leadership</div>
+      <div class="insight-card-body">
+        <div class="metric-row">
+          <span>DLF Coverage</span>
+          <strong>21 states</strong>
+        </div>
+        <div class="metric-row">
+          <span>Next closest peer</span>
+          <strong>Pan-India (scattered)</strong>
+        </div>
+        <div class="metric-row" style="border-top: 1px solid #E5E7EB; padding-top: 1rem; margin-top: 1rem;">
+          <span>Unserved by any</span>
+          <strong>7+ states</strong>
+        </div>
+        <p style="font-size:12px; color:#6B7280; margin-top:1rem;">DLF has strongest consolidated state presence. Opportunity: expand to underserved states in NE India.</p>
+      </div>
+    </div>
+
+    <!-- Support Depth -->
+    <div class="insight-card">
+      <div class="insight-card-title">📊 Support Depth Leadership</div>
+      <div class="insight-card-body">
+        <div class="metric-row">
+          <span>DLF Coverage</span>
+          <strong>10/10 types</strong>
+        </div>
+        <div class="metric-row">
+          <span>Peer average</span>
+          <strong>3.2/10 types</strong>
+        </div>
+        <div class="metric-row" style="border-top: 1px solid #E5E7EB; padding-top: 1rem; margin-top: 1rem;">
+          <span>Gap vs next competitor</span>
+          <strong>+6.4 types</strong>
+        </div>
+        <p style="font-size:12px; color:#6B7280; margin-top:1rem;">DLF is the only holistic program. Competitors fragment support—DLF can emphasize integrated model.</p>
+      </div>
+    </div>
+
+    <!-- Access Model -->
+    <div class="insight-card">
+      <div class="insight-card-title">🔓 Open Access Model</div>
+      <div class="insight-card-body">
+        <div class="metric-row">
+          <span>Programs with open access</span>
+          <strong>2 of 11</strong>
+        </div>
+        <div class="metric-row">
+          <span>Programs restricted by</span>
+          <strong>Caste, gender, location</strong>
+        </div>
+        <div class="metric-row" style="border-top: 1px solid #E5E7EB; padding-top: 1rem; margin-top: 1rem;">
+          <span>DLF advantage</span>
+          <strong>No restrictions</strong>
+        </div>
+        <p style="font-size:12px; color:#6B7280; margin-top:1rem;">Market insight: 9 of 11 peers have exclusions. DLF's inclusive model is rare—amplify this.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Market Gap Finder -->
+  <div class="gap-finder">
+    <div class="gap-title">Market Gaps: What Peers Miss</div>
+    <div class="gap-grid" id="gap-grid"></div>
+  </div>
+
+  <!-- Competitor Comparison Tool -->
+  <div class="comparison-tool">
+    <div class="tool-title">Compare DLF vs Any Peer</div>
+    <div class="tool-controls">
+      <label>Select a program to compare:</label>
+      <select id="compare-select" onchange="updateComparison(this.value)">
+        <option value="">— Choose —</option>
+      </select>
+    </div>
+    <div id="comparison-result" style="margin-top: 1.5rem;"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-org" id="m-org"></div>
+        <h2 class="modal-title" id="m-name"></h2>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="m-body"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>DLF CARES Scholarship Benchmarking Report. Data from FY2023-26 official sources and verified CSR disclosures.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+
+// DATA
+const programs = [
+  { id: 'dlf', name: 'DLF CARES Education Support Programme', org: 'DLF Foundation', founded: '2011', entry: 'Class 1', gender: 'All genders', income: '₹4,00,000 p.a.', annual: 'Full school fee', annualNum: 80000, students: 4247, cumulative: 5200, states: '21 states', geo: 'Pan-India (21 states)', fee: true, uniform: true, books: true, stationery: true, transport: false, counselling: true, remedial: true, career: true, psychometric: true, digital: true, open: true, class1: true, full: true, source: 'https://dlfcares.org', sourceLabel: 'dlfcares.org', verified: true, notes: 'FY 2025–26. 262 in higher education. ACER assessments, JEE/NEET coaching. 3x CSR Awards 2025. Deloitte-verified impact.', dlf: true },
+  { id: 'hdfc', name: 'Parivartan ECSS Programme', org: 'HDFC Bank', founded: '~2012', entry: 'Class 1', gender: 'All genders', income: '₹2,50,000 p.a.', annual: '₹15,000–₹75,000', annualNum: 75000, students: null, cumulative: null, states: 'Pan-India', geo: '600+ districts', fee: true, uniform: false, books: false, stationery: false, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: true, class1: true, full: false, source: 'https://v.hdfc.bank.in/csr', sourceLabel: 'HDFC Bank CSR', verified: true, notes: 'Via Buddy4Study. Fee only (up to ₹75K for higher ed). ₹1K Cr total Parivartan budget (all sectors).' },
+  { id: 'vedanta', name: 'Vedanta DAV Scholarship', org: 'Vedanta Limited', founded: 'N/A', entry: 'Class 1', gender: 'All genders', income: 'PAP/Employee', annual: 'Full (incl. transport)', annualNum: 70000, students: null, cumulative: null, states: 'Plant locations', geo: 'RJ, OD, MP, GA, KA', fee: true, uniform: true, books: true, stationery: true, transport: true, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: true, full: true, source: 'https://vedantalimited.com/csr', sourceLabel: 'Vedanta CSR', verified: false, notes: 'PAP/employee only. Transport unique. Restricted geography.' },
+  { id: 'amns_beti', name: 'Beti Padhao Scholarship', org: 'ArcelorMittal Nippon Steel', founded: 'N/A', entry: 'Class 8', gender: 'Girls only', income: '₹5,00,000 p.a.', annual: '₹10,000–₹15,000', annualNum: 15000, students: null, cumulative: null, states: '5 states', geo: 'GJ, OD, JH, KA, MH', fee: true, uniform: false, books: false, stationery: false, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: false, full: false, source: 'https://amns-india.com/sustainability', sourceLabel: 'AM/NS India CSR', verified: false, notes: 'Girls only. Starts Class 8. Misses Class 1-7.' },
+  { id: 'tata', name: 'Jyoti Fellowship', org: 'Tata Steel Foundation', founded: '1974', entry: 'Class 7', gender: 'SC/ST only', income: 'BPL', annual: '~₹6,000', annualNum: 6000, students: 4200, cumulative: 31307, states: 'JH, OD', geo: 'East/West Singhbhum, Keonjhar', fee: true, uniform: false, books: true, stationery: false, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: 'top-performers', open: false, class1: false, full: false, source: 'https://tatasteel.com/csr', sourceLabel: 'Tata Steel', verified: true, notes: '50+ yr legacy. SC/ST caste restriction. 31k+ cumulative.' },
+  { id: 'mphasis', name: 'VIDYA Programme', org: 'Mphasis + SOS', founded: 'N/A', entry: 'Residential', gender: 'All genders', income: 'Orphaned only', annual: 'Full residential', annualNum: 120000, students: null, cumulative: null, states: 'Pan-India', geo: 'SOS locations', fee: true, uniform: true, books: true, stationery: true, transport: true, counselling: true, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: true, full: true, source: 'https://mphasis.com/csr', sourceLabel: 'Mphasis CSR', verified: false, notes: 'Orphaned/abandoned children only. Full residential with house parent.' },
+  { id: 'naandi', name: 'Prerana Programme', org: 'Naandi Foundation', founded: 'N/A', entry: 'Class 6', gender: 'Girls primary', income: 'BPL', annual: 'Variable', annualNum: 10000, students: null, cumulative: null, states: 'AP, TG, RJ', geo: 'Andhra Pradesh, Telangana, Rajasthan', fee: true, uniform: true, books: true, stationery: true, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: false, full: false, source: 'https://naandi.org', sourceLabel: 'Naandi', verified: false, notes: 'NGO-led. Girls-primary. 3 states only.' },
+  { id: 'ultratech', name: 'Community Education CSR', org: 'UltraTech Cement', founded: 'N/A', entry: 'Class 1 (age 3+)', gender: 'All genders', income: 'BPL (plant)', annual: 'Full', annualNum: 60000, students: 9500, cumulative: null, states: '150+ plant locations', geo: 'Pan-India plant areas', fee: true, uniform: true, books: true, stationery: true, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: true, full: true, source: 'https://ultratechcement.com/csr', sourceLabel: 'UltraTech CSR', verified: false, notes: 'Anganwadi integration from age 3. 9,500 via 250 centers.' },
+  { id: 'coal', name: 'Employee Children Scholarship', org: 'Coal India Limited', founded: 'N/A', entry: 'Class 1', gender: 'All genders', income: 'Employee family', annual: '₹6,000–₹18,000', annualNum: 18000, students: null, cumulative: null, states: 'Coal belt', geo: 'JH, OD, WB, MP, CG', fee: true, uniform: true, books: true, stationery: true, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: true, full: true, source: 'https://coalindia.in/csr', sourceLabel: 'Coal India CSR', verified: false, notes: 'PSU. Employee children only. Monthly stipend model.' },
+  { id: 'jsw', name: 'Umeed Scholarship', org: 'JSW Foundation', founded: '~2020', entry: 'Class 1', gender: 'All genders', income: '₹8,00,000 p.a.', annual: '₹10,000 (Cl1-10)', annualNum: 10000, students: null, cumulative: null, states: 'Plant locations', geo: 'Vijayanagar, Dolvi, Salem, etc.', fee: true, uniform: false, books: true, stationery: false, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: true, full: false, source: 'https://vidyasaarathi.co.in', sourceLabel: 'JSW Vidyasaarathi', verified: true, notes: 'COVID response. Highest income ceiling (₹8L). 35% marks min.' },
+  { id: 'amns_base', name: 'Community School Stipend', org: 'AM/NS India', founded: 'N/A', entry: 'Class 1', gender: 'All genders', income: 'Plant community', annual: '₹5,000–₹8,000', annualNum: 8000, students: null, cumulative: null, states: '2 locations', geo: 'Hazira (GJ), Paradip (OD)', fee: true, uniform: false, books: true, stationery: false, transport: false, counselling: false, remedial: false, career: false, psychometric: false, digital: false, open: false, class1: true, full: false, source: 'https://amns-india.com/sustainability', sourceLabel: 'AM/NS CSR', verified: false, notes: 'Hyper-local to 2 sites. Books only.' }
+];
+
+// COUNTER
+function animateCounters() {
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseInt(el.dataset.count);
+    let current = 0;
+    const inc = Math.ceil(target / 40);
+    const timer = setInterval(() => {
+      current += inc;
+      if (current >= target) {
+        el.textContent = target === 136875000 ? '₹' + (136875000/10000000).toFixed(1) + 'Cr' : target.toLocaleString();
+        clearInterval(timer);
+      } else {
+        el.textContent = current === 136875000 ? '₹...' : current.toLocaleString();
+      }
+    }, 30);
+  });
+}
+
+// RENDER CARDS
+function renderCards(data) {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = data.map(p => {
+    const fields = ['fee','uniform','books','stationery','transport','counselling','remedial','career','psychometric','digital'];
+    const score = fields.filter(f => p[f] === true).length;
+    const supports = fields.filter(f => p[f] === true).slice(0, 5);
+    return `<div class="program-card ${p.dlf ? 'dlf-card' : ''}" data-name="${p.name}" data-open="${p.open}" data-class1="${p.class1}" data-full="${p.full}" onclick="openModal('${p.id}')">
+      ${p.dlf ? '<div class="card-badge">BENCHMARK</div>' : ''}
+      <div class="card-head">
+        <div class="card-org">${p.org}</div>
+        <div class="card-name">${p.name}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-row">
+          <div class="card-field"><div class="field-label">Entry</div><div class="field-value">${p.entry}</div></div>
+          <div class="card-field"><div class="field-label">Award</div><div class="field-value">${p.annual}</div></div>
+        </div>
+        <div class="card-row">
+          <div class="card-field"><div class="field-label">Gender</div><div class="field-value">${p.gender}</div></div>
+          <div class="card-field"><div class="field-label">Scope</div><div class="field-value">${p.states}</div></div>
+        </div>
+        <div class="support-grid">
+          ${supports.map(f => `<div class="support-item">✓ ${f.charAt(0).toUpperCase() + f.slice(1)}</div>`).join('')}
+          ${supports.length < 5 ? `<div class="support-item" style="background:transparent;color:#9CA3AF;">+${5-supports.length} more</div>`.repeat(Math.max(0, 5-supports.length)) : ''}
+        </div>
+        <div class="coverage-bar"><div class="coverage-fill" style="width:${(score/10*100).toFixed(0)}%"></div></div>
+        <div class="coverage-text">${score}/10 support types</div>
+      </div>
+      <div class="card-footer">
+        <span class="footer-stat">${p.students ? p.students.toLocaleString() : '—'} students</span>
+        <button class="view-btn">View</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// MODAL
+function openModal(id) {
+  const p = programs.find(x => x.id === id);
+  document.getElementById('m-org').textContent = p.org;
+  document.getElementById('m-name').textContent = p.name;
+
+  const supportFields = [
+    ['Fee Coverage', p.fee ? '✓ Yes' : '✗ No'],
+    ['Uniform', p.uniform ? '✓ Yes' : '✗ No'],
+    ['Books', p.books ? '✓ Yes' : '✗ No'],
+    ['Stationery', p.stationery ? '✓ Yes' : '✗ No'],
+    ['Transport', p.transport ? '✓ Yes' : '✗ No'],
+    ['Counselling', p.counselling ? '✓ Yes' : '✗ No'],
+    ['Remedial', p.remedial ? '✓ Yes' : '✗ No'],
+    ['Career Guidance', p.career ? '✓ Yes' : '✗ No'],
+    ['Psychometric', p.psychometric ? '✓ Yes' : '✗ No'],
+    ['Digital Devices', p.digital ? '✓ Yes' : '✗ No']
+  ];
+
+  document.getElementById('m-body').innerHTML = `
+    <div class="modal-section">
+      <h3>Program Details</h3>
+      <div class="modal-grid">
+        <div class="modal-field"><div class="modal-field-label">Founded</div><div class="modal-field-value">${p.founded}</div></div>
+        <div class="modal-field"><div class="modal-field-label">Entry Point</div><div class="modal-field-value">${p.entry}</div></div>
+        <div class="modal-field"><div class="modal-field-label">Gender</div><div class="modal-field-value">${p.gender}</div></div>
+        <div class="modal-field"><div class="modal-field-label">Income Limit</div><div class="modal-field-value">${p.income}</div></div>
+        <div class="modal-field"><div class="modal-field-label">Geographic Scope</div><div class="modal-field-value">${p.geo}</div></div>
+        <div class="modal-field"><div class="modal-field-label">Access</div><div class="modal-field-value">${p.open ? '✓ Open' : '✗ Restricted'}</div></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <h3>Financial Details</h3>
+      <div class="modal-grid">
+        <div class="modal-field"><div class="modal-field-label">Annual Award</div><div class="modal-field-value">${p.annual}</div></div>
+        <div class="modal-field"><div class="modal-field-label">Active Scholars</div><div class="modal-field-value">${p.students ? p.students.toLocaleString() : 'Not disclosed'}</div></div>
+        <div class="modal-field"><div class="modal-field-label">Cumulative</div><div class="modal-field-value">${p.cumulative ? p.cumulative.toLocaleString() + '+' : 'Not disclosed'}</div></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <h3>Support Coverage</h3>
+      <div class="modal-grid">
+        ${supportFields.map(([label, val]) => `<div class="modal-field"><div class="modal-field-label">${label}</div><div class="modal-field-value">${val}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="modal-section">
+      <h3>About</h3>
+      <p style="font-size:12px;color:#6B7280;line-height:1.6;margin-bottom:1rem;">${p.notes}</p>
+      <a href="${p.source}" target="_blank" class="source-link">🔗 ${p.sourceLabel} ${p.verified ? '✓' : ''}</a>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// NCR DISTRICTS: lat/lng data for the Leaflet map
+const ncrDistrictsGeo = [
+  // ── Delhi (11 districts) ──────────────────────────────────────────────────
+  { name:'North Delhi',      region:'delhi',   lat:28.760, lng:77.175, rate:4.2 },
+  { name:'South Delhi',      region:'delhi',   lat:28.520, lng:77.225, rate:3.8 },
+  { name:'East Delhi',       region:'delhi',   lat:28.655, lng:77.315, rate:6.5 },
+  { name:'West Delhi',       region:'delhi',   lat:28.650, lng:77.105, rate:5.1 },
+  { name:'New Delhi',        region:'delhi',   lat:28.633, lng:77.219, rate:3.2 },
+  { name:'Central Delhi',    region:'delhi',   lat:28.672, lng:77.220, rate:4.7 },
+  { name:'North East Delhi', region:'delhi',   lat:28.734, lng:77.325, rate:7.2 },
+  { name:'North West Delhi', region:'delhi',   lat:28.722, lng:77.085, rate:5.9 },
+  { name:'South East Delhi', region:'delhi',   lat:28.578, lng:77.303, rate:4.1 },
+  { name:'South West Delhi', region:'delhi',   lat:28.565, lng:77.093, rate:3.9 },
+  { name:'Shahdara',         region:'delhi',   lat:28.685, lng:77.290, rate:6.3 },
+  // ── Haryana NCR (10 districts) ────────────────────────────────────────────
+  { name:'Faridabad',        region:'haryana', lat:28.408, lng:77.317, rate:9.2  },
+  { name:'Gurgaon',          region:'haryana', lat:28.459, lng:77.026, rate:8.1  },
+  { name:'Sonepat',          region:'haryana', lat:28.995, lng:77.015, rate:12.4 },
+  { name:'Panipat',          region:'haryana', lat:29.390, lng:76.968, rate:13.8 },
+  { name:'Rohtak',           region:'haryana', lat:28.895, lng:76.588, rate:11.9 },
+  { name:'Karnal',           region:'haryana', lat:29.685, lng:76.990, rate:15.2 },
+  { name:'Kaithal',          region:'haryana', lat:29.801, lng:76.400, rate:18.6 },
+  { name:'Jind',             region:'haryana', lat:29.318, lng:76.316, rate:21.3 },
+  { name:'Hisar',            region:'haryana', lat:29.148, lng:75.722, rate:24.7 },
+  { name:'Yamunanagar',      region:'haryana', lat:30.135, lng:77.303, rate:10.5 },
+  // ── Uttar Pradesh NCR (8 districts) ──────────────────────────────────────
+  { name:'Ghaziabad',           region:'up', lat:28.668, lng:77.431, rate:12.8 },
+  { name:'Gautam Budh Nagar',   region:'up', lat:28.565, lng:77.355, rate:11.4 },
+  { name:'Hapur',               region:'up', lat:28.733, lng:77.782, rate:14.2 },
+  { name:'Meerut',              region:'up', lat:28.990, lng:77.690, rate:22.1 },
+  { name:'Baghpat',             region:'up', lat:28.944, lng:77.215, rate:13.7 },
+  { name:'Bulandshahr',         region:'up', lat:28.407, lng:77.849, rate:25.3 },
+  { name:'Muzaffarnagar',       region:'up', lat:29.470, lng:77.709, rate:19.8 },
+  { name:'Shamli',              region:'up', lat:29.564, lng:77.304, rate:17.5 }
+];
+
+// NCR INTERACTIVE MAP
+let ncrMapInstance = null;
+function renderNCRMap() {
+  const colors = {
+    low:      { fill:'#1D9E75', label:'Low (<8%)'        },
+    moderate: { fill:'#EF9F27', label:'Moderate (8–15%)' },
+    high:     { fill:'#A32D2D', label:'High (>15%)'      }
+  };
+
+  function getLevel(rate) {
+    if (rate > 15) return 'high';
+    if (rate > 8)  return 'moderate';
+    return 'low';
+  }
+  function getRadius(rate) {
+    if (rate > 20) return 17;
+    if (rate > 15) return 14;
+    if (rate > 8)  return 11;
+    return 9;
+  }
+  function regionLabel(r) {
+    return r === 'delhi' ? 'Delhi' : r === 'haryana' ? 'Haryana NCR' : 'Uttar Pradesh NCR';
+  }
+
+  ncrMapInstance = L.map('ncr-map', { zoomControl: true }).setView([28.80, 77.15], 9);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors · UDISE+ 2021–24',
+    maxZoom: 14
+  }).addTo(ncrMapInstance);
+
+  const ncrMarkers = [];
+
+  ncrDistrictsGeo.forEach(d => {
+    const lvl   = getLevel(d.rate);
+    const color = colors[lvl].fill;
+    const r     = getRadius(d.rate);
+
+    const circle = L.circleMarker([d.lat, d.lng], {
+      radius:      r,
+      fillColor:   color,
+      color:       '#ffffff',
+      weight:      2,
+      opacity:     1,
+      fillOpacity: 0.88
+    }).addTo(ncrMapInstance);
+
+    const isHigh   = lvl === 'high';
+    const isPriority = d.rate > 20;
+    circle.bindPopup(`
+      <div style="font-family:'Inter',sans-serif;min-width:210px;">
+        <div style="font-weight:700;font-size:14px;color:#1A1A3E;margin-bottom:3px;">${d.name}</div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:8px;">${regionLabel(d.region)}</div>
+        <div style="font-size:26px;font-weight:800;color:${color};margin-bottom:8px;line-height:1;">${d.rate}%</div>
+        <div style="font-size:11px;padding:4px 10px;background:${color}22;border-left:3px solid ${color};border-radius:4px;color:${color};font-weight:700;margin-bottom:${isHigh?'8px':'0'};">
+          ${colors[lvl].label}
+        </div>
+        ${isPriority ? `<div style="font-size:11px;background:#FEF9E7;border-radius:4px;padding:6px 8px;margin-top:8px;color:#78350F;border-left:3px solid #F5C518;">⭐ DLF priority expansion zone</div>` : ''}
+        ${lvl==='low' ? `<div style="font-size:11px;background:#ECFDF5;border-radius:4px;padding:6px 8px;margin-top:8px;color:#065F46;border-left:3px solid #1D9E75;">🎯 DLF current operational area</div>` : ''}
+      </div>
+    `, { maxWidth: 270 });
+
+    circle.bindTooltip(`<b>${d.name}</b>: ${d.rate}%`, { direction:'top', offset:[0,-r] });
+    ncrMarkers.push({ circle, region: d.region, rate: d.rate, name: d.name, onMap: true });
+  });
+
+  // Update counter
+  function updateCount(n) {
+    const el = document.getElementById('ncr-count');
+    if (el) el.textContent = n + ' districts';
+  }
+  updateCount(ncrDistrictsGeo.length);
+
+  // Filter by region
+  window.filterNCR = function(region, btn) {
+    document.querySelectorAll('.ncr-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    let visible = 0;
+    ncrMarkers.forEach(m => {
+      const show = region === 'all' || m.region === region;
+      if (show && !m.onMap) { m.circle.addTo(ncrMapInstance); m.onMap = true; }
+      if (!show && m.onMap) { ncrMapInstance.removeLayer(m.circle); m.onMap = false; }
+      if (show) visible++;
+    });
+    updateCount(visible);
+
+    // Fit bounds
+    const pts = (region === 'all' ? ncrDistrictsGeo : ncrDistrictsGeo.filter(d => d.region === region))
+                .map(d => [d.lat, d.lng]);
+    if (pts.length) ncrMapInstance.fitBounds(L.latLngBounds(pts), { padding:[50,50] });
+  };
+}
+
+// HEATMAP
+function renderHeatmap() {
+  const fields = ['fee','uniform','books','stationery','transport','counselling','remedial','career','psychometric','digital'];
+  const rows = programs.map(p => {
+    const score = fields.filter(f => p[f] === true).length;
+    return `<tr>
+      <td class="prog-name ${p.dlf ? 'dlf' : ''}">${p.org.split(' ')[0]}</td>
+      ${fields.map(f => `<td><div class="heat-cell ${p[f] !== true ? 'none' : ''}">${p[f] === true ? '✓' : '✕'}</div></td>`).join('')}
+      <td style="font-weight:700;color:#1F2937;">${score}/10</td>
+    </tr>`;
+  });
+  document.getElementById('heatmap').innerHTML = rows.join('');
+}
+
+// GAP FINDER
+function renderGapFinder() {
+  const gaps = [
+    { title: 'No program covers all 3', desc: 'Full fee + Counselling + Career guidance + Psychometric testing together. DLF is the only one.' },
+    { title: '7+ states completely unserved', desc: 'No major peer program operates in North-East states. DLF could expand into AP, Meghalaya, Assam.' },
+    { title: 'Higher education gap', desc: '10 of 11 programs only cover school level. Opportunity: extend to college-level scholarship model.' },
+    { title: 'No program focuses on girls + transport', desc: 'Only Vedanta covers transport. Beti Padhao is girls-only but limited. Market gap exists here.' },
+    { title: 'Remedial support rare', desc: 'Only DLF + Mphasis offer remedial education. Most programs assume existing capability.' },
+    { title: 'Digital device inclusion missing', desc: 'Only DLF provides digital devices. Post-COVID, this is strategic advantage—emphasize it.' }
+  ];
+
+  document.getElementById('gap-grid').innerHTML = gaps.map((gap, i) => `
+    <div class="gap-item" onclick="this.style.background='#FDF6D9'">
+      <div class="gap-item-title">${gap.title}</div>
+      <div class="gap-item-desc">${gap.desc}</div>
+    </div>
+  `).join('');
+}
+
+// COMPARISON TOOL
+function renderComparisonSelect() {
+  const select = document.getElementById('compare-select');
+  select.innerHTML = '<option value="">— Choose a program —</option>' + 
+    programs.slice(1).map(p => `<option value="${p.id}">${p.org}</option>`).join('');
+}
+
+function updateComparison(id) {
+  if (!id) {
+    document.getElementById('comparison-result').innerHTML = '';
+    return;
+  }
+  
+  const peer = programs.find(p => p.id === id);
+  const dlf = programs[0];
+  const fields = ['fee','uniform','books','stationery','transport','counselling','remedial','career','psychometric','digital'];
+  const labels = ['Fee Coverage', 'Uniform', 'Books', 'Stationery', 'Transport', 'Counselling', 'Remedial', 'Career Guidance', 'Psychometric', 'Digital Devices'];
+
+  let html = `<div class="comparison-result">
+    <div class="comp-col">
+      <div class="comp-col-title">🎯 ${peer.org}</div>`;
+  
+  fields.forEach((f, i) => {
+    const has = peer[f] === true;
+    html += `<div class="comp-row">
+      <span class="comp-label">${labels[i]}</span>
+      <span class="comp-value ${has ? 'check' : 'cross'}">${has ? '✓' : '✕'}</span>
+    </div>`;
+  });
+  
+  html += `</div><div class="comp-col dlf">
+    <div class="comp-col-title">🏆 DLF CARES (for comparison)</div>`;
+  
+  fields.forEach((f, i) => {
+    html += `<div class="comp-row">
+      <span class="comp-label">${labels[i]}</span>
+      <span class="comp-value check">✓</span>
+    </div>`;
+  });
+  
+  const peerUnique = fields.filter(f => peer[f] === true && dlf[f] !== true);
+  const peerSpecialties = [];
+  
+  if (peer.id === 'vedanta' || peer.id === 'mphasis') {
+    peerSpecialties.push('Includes transport coverage');
+  }
+  if (peer.id === 'mphasis') {
+    peerSpecialties.push('Full residential model with dedicated house parents for orphaned children');
+  }
+  if (peer.id === 'tata') {
+    peerSpecialties.push('50+ year legacy and proven track record');
+  }
+  if (peer.id === 'amns_beti') {
+    peerSpecialties.push('Focused exclusively on girls\' education equity');
+  }
+  if (peer.id === 'naandi') {
+    peerSpecialties.push('NGO-led model (agile, community-trusted delivery)');
+  }
+  if (peer.id === 'coal') {
+    peerSpecialties.push('Direct monthly stipend disbursed to families (not schools)');
+  }
+  if (peer.id === 'jsw') {
+    peerSpecialties.push('Highest income ceiling (₹8L) - reaches more middle-income families');
+  }
+  
+  html += `</div></div>`;
+  
+  if (peerSpecialties.length > 0) {
+    html += `<div class="comp-insight">
+      <strong>${peer.org}'s unique strengths:</strong>
+      <ul style="margin: 0.5rem 0 0 1.2rem; padding: 0; font-size: 12px;">`;
+    peerSpecialties.forEach(s => {
+      html += `<li style="margin: 0.25rem 0;">${s}</li>`;
+    });
+    html += `</ul>
+    </div>`;
+  } else {
+    html += `<div class="comp-insight">
+      <strong>${peer.org}'s focus:</strong>
+      ${peer.notes}
+    </div>`;
+  }
+  
+  document.getElementById('comparison-result').innerHTML = html;
+}
+
+// AMOUNT CHART (removed - replaced with strategic insights)
+
+// FILTERS
+let filter = 'all';
+function setFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+function applyFilters() {
+  const q = document.getElementById('search').value.toLowerCase();
+  let count = 0;
+  document.querySelectorAll('.program-card').forEach(card => {
+    const name = card.dataset.name.toLowerCase();
+    const hasText = name.includes(q);
+    const passFilter = filter === 'all' || 
+      (filter === 'open' && card.dataset.open === 'true') ||
+      (filter === 'class1' && card.dataset.class1 === 'true') ||
+      (filter === 'full' && card.dataset.full === 'true');
+    const show = hasText && passFilter;
+    card.style.display = show ? '' : 'none';
+    if (show) count++;
+  });
+  document.getElementById('count').textContent = `Showing ${count}`;
+}
+
+function scroll(id) {
+  document.querySelector(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// INIT
+renderCards(programs);
+renderHeatmap();
+renderNCRMap();
+renderGapFinder();
+renderComparisonSelect();
+animateCounters();
+
+document.addEventListener('keydown', e => e.key === 'Escape' && closeModal());
+
+</script>
+</body>
+</html>
